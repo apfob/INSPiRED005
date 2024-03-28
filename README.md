@@ -7,4 +7,9 @@ This document provides guidence on how to follow and apply the code for the INSP
 (3) model development 
 
 1) Image segmentation was performed using
-2) Feature extraction was performed using pyradiomics, see file 
+2) Feature extraction was performed using pyradiomics, see files:
+     for B-mode images: feature_extraction_B_clahe_pseudonymized.ipynb
+     for SE images: feature_extraction_STR_clahe_pseudonymized.ipynb
+
+3) model development:
+     for B-mode model: 
