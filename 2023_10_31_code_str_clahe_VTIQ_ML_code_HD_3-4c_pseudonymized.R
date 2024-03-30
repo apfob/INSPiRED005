@@ -1,6 +1,5 @@
 #### (1) Install and load relevant packages ####
-#setwd("/Users/andre/Documents/one drive/OneDrive/Forschung/2_ML/2020_VTIQ multi/ML Elastography/r")
-#setwd ("D://OneDrive/Forschung/2_ML/2021_ML practical guidelines/r")
+
 
 
 require(RTextTools)
