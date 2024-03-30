@@ -533,10 +533,9 @@ levels(db$swe3_position)
 
 
 db$outcome<-as.factor(ifelse(db$outcome==1, "Benign", "Malignant"))
-levels(db$outcome) #caret uses the first level of the outcome variable as reference during the training process - so first level should be the positive outcome 
+levels(db$outcome) 
 db$outcome <- factor(db$outcome, levels=rev(levels(db$outcome)))
 levels(db$outcome)
-#Malignant als Outcome-Variable, daher anders als Predictive Variables.
 
 
 #make numeric variables numeric
@@ -829,14 +828,14 @@ formula<-as.formula(paste(outcome, paste(predictors, collapse = "+"),sep="~"))
 set.seed(my_seed)
 
 recipe<-recipe(formula,db_train) %>%
-  step_impute_knn(all_predictors(), neighbors = 5) %>%                   # impute with KNN (von missing values). missing neighbours: anhand Durchschnitt der ähnlichsten anderen Patienten (hier 5)
-  step_BoxCox(all_numeric(),-all_outcomes()) %>%                        # boxcox transformation for all numeric features, d.h. Variablen werden auf einheitl. Skalenniveau skaliert (dass nicht große Variablen (bspw. Einkommen) ein größeres Gewicht bekommen.)
-  step_other(all_nominal(), threshold = .05, other = "other") %>%        # (all nominal selects all factors): lumping: If it's less than one then factor levels whose rate of occurrence in the training set are below threshold will be "othered". If it's greater or equal to one then it's treated as a frequency and factor levels that occur less then threshold times will be "othered".
-  step_zv(all_predictors(),-all_outcomes()) %>%                         # remove zero variance variables
-  step_nzv(all_predictors(),-all_outcomes())%>%                         # remove near zero variance variables
-  step_normalize(all_numeric(),-all_outcomes())%>%                      # normalize all numeric features 
-  step_dummy(all_nominal(),-all_outcomes()) %>%                         # one hot encoding for factor variables  => d.h. logische Schlussfolgerung bei categoriellen Variablen
-  step_corr(all_predictors(),-all_outcomes(), threshold = 0.9)          # remove variables that have large absolute correlations with other variables. The step will try to remove the minimum number of columns so that all the resulting absolute correlations are less than this value.
+  step_impute_knn(all_predictors(), neighbors = 5) %>%                   
+  step_BoxCox(all_numeric(),-all_outcomes()) %>%                        
+  step_other(all_nominal(), threshold = .05, other = "other") %>%        
+  step_zv(all_predictors(),-all_outcomes()) %>%                         
+  step_nzv(all_predictors(),-all_outcomes())%>%                         
+  step_normalize(all_numeric(),-all_outcomes())%>%                      
+  step_dummy(all_nominal(),-all_outcomes()) %>%                         
+  step_corr(all_predictors(),-all_outcomes(), threshold = 0.9)          
 
 
 #examine what modifications are done on the dataset 
@@ -871,8 +870,8 @@ MySummary  <- function(data, lev = NULL, model = NULL){
 #cv grid search
 cv_grid <- trainControl(
   method = "repeatedcv", 
-  number = 10, #Unterteilung des Testsets in 10 Teile
-  repeats = 3,  #10-fold cross-validation wird 3x durchgerechnet. Damit wird weniger dem Zufall überlassen, dass gerade eine optimale Performance erreicht wird
+  number = 10, 
+  repeats = 3,  
   search = "grid", 
   verboseIter= TRUE,
   classProbs = TRUE,
@@ -925,25 +924,8 @@ stopCluster(cl)
 registerDoSEQ()
 
 
-cv_glm$bestTune
-cv_glm$results[c(25),]
-
-#alpha      lambda  Accuracy     Kappa       ROC      Sens      Spec       AUC Precision    Recall
-#0.4549702 0.008100243 0.8826207 0.6877192 0.9325435 0.7353333 0.9355721 0.7979705 0.8075674 0.7353333
-#       F   AccuracySD    KappaSD      ROCSD    SensSD     SpecSD      AUCSD PrecisionSD  RecallSD        FSD
-#0.7651905  0.0343082 0.09782109 0.02192669 0.1083226 0.02721751 0.05458847   0.0737571 0.1083226 0.07755472
-ggplot(cv_glm)
-
-
 
 ### XGBoost ####
-#Hyperparameters
-#max_depth:Controls the maximum depth of the trees. Deeper trees have more terminal nodes and fit more data. Convergence also requires less trees if we grow them deep. However, if the trees are to deep we will be using a lot of information from the first trees and the final trees of the algorithm will have less importance on the loss function. The Boosting benefits from using information from many trees. Therefore it is intuitive that huge trees are not desirable. Smaller trees also grow faster and because the Boosting grow new trees in a pseudo-residual and we do not require any amazing adjustment for an individual tree.
-#eta: range [0,1] Learning (or shrinkage) parameter. It controls how much information from a new tree will be used in the Boosting. This parameter must be bigger than 0 and limited to 1. If it is close to zero we will use only a small piece of information from each new tree. If we set eta to 1 we will use all information from the new tree. Big values of eta result in a faster convergence and more over-fitting problems. Small values may need to many trees to converge.
-#gamma: range [0,endless] Minimum loss reduction required to make a further partition on a leaf node of the tree. The larger gamma is, the more conservative the algorithm will be. 
-#colsample_bytree: range [0,1] colsample_bytree is the subsample ratio of columns when constructing each tree. Subsampling occurs once for every tree constructed.
-#min child weight: Minimum sum of instance weight (hessian) needed in a child. If the tree partition step results in a leaf node with the sum of instance weight less than min_child_weight, then the building process will give up further partitioning. 
-#subsample: range [0,1] Subsample ratio of the training instances. Setting it to 0.5 means that XGBoost would randomly sample half of the training data prior to growing trees. and this will prevent overfitting. Subsampling will occur once in every boosting iteration.
 
 hyper_grid_xgboost <- expand.grid(
   nrounds = seq(from=5, to= 100, by=5), 
@@ -974,34 +956,10 @@ cv_xgboost <- caret::train(recipe,
 stopCluster(cl)
 registerDoSEQ()
 
-cv_xgboost$bestTune
-cv_xgboost$results[c("9"),]
-
-#       eta max_depth    gamma colsample_bytree min_child_weight subsample nrounds  Accuracy     Kappa
-# 0.2213521         1 4.514488         0.574745                2 0.9475944     121 0.8826761 0.6813555
-#     ROC      Sens      Spec       AUC Precision    Recall         F AccuracySD    KappaSD      ROCSD
-#0.930885 0.7065556 0.9460126 0.7905473 0.8270521 0.7065556 0.7574637 0.03285075 0.09626776 0.02389728
-#SensSD     SpecSD     AUCSD PrecisionSD  RecallSD       FSD
-#0.1107593 0.02255929 0.0532228  0.06534975 0.1107593 0.0772669
-
-ggplot(cv_xgboost)
 
 
 
 #### (6) Resampling performance testing ####
-
-### ROC ####
-
-
-roc_xgboost_train = roc(as.vector(db_train$outcome),as.matrix(predict(cv_xgboost , db_train, type = "prob")$"Malignant")) #Conduct the ROC analyses
-auc_xgboost_train = pROC::auc(roc_xgboost_train) #Calculate the area under the ROC curve
-auc_CI_xgboost_train = pROC::ci.auc(roc_xgboost_train, method="bootstrap", boot.stratified=TRUE) #Calculate the area under the ROC curve
-
-
-roc_glm_train = roc(as.vector(db_train$outcome),as.matrix(predict(cv_glm , db_train, type = "prob")$"Malignant")) #Conduct the ROC analyses
-auc_glm_train = pROC::auc(roc_glm_train) #Calculate the area under the ROC curve
-auc_CI_glm_train = pROC::ci.auc(roc_glm_train, method="bootstrap", boot.stratified=TRUE) #Calculate the area under the ROC curve
-
 
 ### metrics ####
 
@@ -1611,7 +1569,6 @@ auc_CI_xgboost_validation_4b = pROC::ci.auc(roc_xgboost_validation_4b, method="b
 
 
 
-#validation
 xgboost_binary_prediction_validation_4a <-
    ifelse(predict(cv_xgboost , db_validation_4a, type = "prob")$"Malignant" 
           >= xgboost_cutoff ,
@@ -1754,4 +1711,4 @@ table(is.na(db_train$birads))
 table(is.na(db_validation$birads))
 
 CrossTable(db$outcome, db$site=="1", chisq = TRUE, prop.chisq = TRUE)
-f
+
